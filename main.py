@@ -1,0 +1,95 @@
+import asyncio
+import os
+from typing import Optional, Union
+
+import instagrapi
+from instagrapi import Client
+import discord
+from discord import Interaction, User, Member, Attachment
+from discord.ext import commands
+from dotenv import load_dotenv
+
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+user_using_bot: Union[User, Member, None] = None
+bot = commands.Bot(intents=intents, command_prefix="!")
+cl = Client()
+
+
+async def subir_imagen(
+        caption: str,
+        image: discord.Attachment,
+) -> None:
+    cl.photo_upload(f"./{image.filename}", caption=caption)
+    return await asyncio.sleep(0.1)
+
+
+@bot.event
+async def on_ready() -> None:
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced: {len(synced)}")
+    except Exception as e:
+        print(e)
+
+
+@bot.tree.command(name="login")
+async def login(
+        interaction: Interaction,
+        username: str,
+        password: str,
+        verification_code: Optional[str]) -> None:
+    global user_using_bot
+
+    if user_using_bot is None:
+        try:
+            user_using_bot = interaction.user
+            cl.login(username=username, password=password, verification_code=verification_code)
+            print(f"Login with @{username}!")
+        except instagrapi.exceptions.BadPassword as e:
+            print(e)
+            await  interaction.followup.send(f'User or password are not correct.')
+
+
+@bot.tree.command(name="logout")
+async def logout(
+        interaction: Interaction):
+    global user_using_bot
+
+    cl.logout()
+    user_using_bot = None
+    print("Logout")
+
+
+@bot.tree.command(name="upload_post", description="It uploads a post to the currently logged-in account.")
+async def upload_post_command(
+        interaction: Interaction,
+        caption: str,
+        image: Attachment
+) -> None:
+    if user_using_bot is None or interaction.user.id != user_using_bot.id:
+        return
+
+    await image.save(f'./{image.filename}')
+    try:
+        await interaction.response.defer()
+        await subir_imagen(caption=caption,
+                           image=image)
+        await interaction.followup.send(f'Post uploaded successfully with caption: "{caption}".')
+
+    except instagrapi.exceptions.FeedbackRequired as e:
+        print(e)
+        await interaction.followup.send(
+            f'Post uploaded successfully with caption: "{caption}". *You are uploading too many posts.*')
+    except Exception as e:
+        await interaction.followup.send(f'Oops! This is uncomfortable, but: {e}')
+    finally:
+        if os.path.exists(f'./{image.filename}'):
+            os.remove(f'./{image.filename}')
+
+
+bot.run(TOKEN)
