@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 from typing import Optional, Union
 
 import instagrapi
@@ -104,5 +105,12 @@ async def upload_post_command(
         if os.path.exists(f'./{image.filename}'):
             os.remove(f'./{image.filename}')
 
+def run_server():
+    port = int(os.environ.get("PORT", 4000))
+    app.run(host="0.0.0.0", port=port)
+
+# Iniciar Flask en un hilo separado
+thread = threading.Thread(target=run_server)
+thread.start()
 
 bot.run(TOKEN)
