@@ -1,9 +1,9 @@
 import asyncio
 import os
-from os import PathLike
 from typing import Optional, Union
 
 import instagrapi
+from flask import Flask
 from instagrapi import Client
 import discord
 from discord import Interaction, User, Member, Attachment
@@ -19,6 +19,12 @@ intents.message_content = True
 user_using_bot: Union[User, Member, None] = None
 bot = commands.Bot(intents=intents, command_prefix="!")
 cl = Client()
+app = Flask(__name__)
+
+
+@app.route('/')
+def home():
+    return "Up and running :D"
 
 
 async def subir_imagen(
