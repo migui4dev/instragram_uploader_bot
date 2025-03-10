@@ -1,5 +1,6 @@
 import asyncio
 import os
+from os import PathLike
 from typing import Optional, Union
 
 import instagrapi
@@ -24,7 +25,7 @@ async def subir_imagen(
         caption: str,
         image: discord.Attachment,
 ) -> None:
-    cl.photo_upload(f"./{image.filename}", caption=caption)
+    cl.photo_upload(image.filename, caption=caption)
     return await asyncio.sleep(0.1)
 
 
@@ -48,8 +49,9 @@ async def login(
     if user_using_bot is None:
         try:
             user_using_bot = interaction.user
+            await interaction.response.defer()
             cl.login(username=username, password=password, verification_code=verification_code)
-            print(f"Login with @{username}!")
+            await  interaction.followup.send(f'{username} logged-in correctly!')
         except instagrapi.exceptions.BadPassword as e:
             print(e)
             await  interaction.followup.send(f'User or password are not correct.')
@@ -60,9 +62,13 @@ async def logout(
         interaction: Interaction):
     global user_using_bot
 
-    cl.logout()
-    user_using_bot = None
-    print("Logout")
+    if user_using_bot is None:
+        await interaction.followup.send('Not user logged-in!')
+    else:
+        await interaction.response.defer()
+        cl.logout()
+        user_using_bot = None
+        await  interaction.followup.send('Logged-out correctly!')
 
 
 @bot.tree.command(name="upload_post", description="It uploads a post to the currently logged-in account.")
@@ -75,6 +81,7 @@ async def upload_post_command(
         return
 
     await image.save(f'./{image.filename}')
+
     try:
         await interaction.response.defer()
         await subir_imagen(caption=caption,
